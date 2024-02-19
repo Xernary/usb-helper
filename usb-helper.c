@@ -32,7 +32,7 @@ int filter(const struct dirent* dirent){
 
 
 // gets every device file name inside the folder at fd and returns the pointer to its array
-int get_names_list(char** names){
+int get_names_list(char*** names){
   
   struct dirent** dirents_list;
   int n;
@@ -43,7 +43,6 @@ int get_names_list(char** names){
     perror("Error in scandir");
     exit(1);
   }
-  printf("n: %d\n\n", n);
 
   names_list = malloc(sizeof(char) * n);
 
@@ -57,7 +56,7 @@ int get_names_list(char** names){
   }
   free(dirents_list);
   
-  names = names_list;
+  *names = names_list;
 
   return n;
 }
@@ -71,7 +70,9 @@ int main(){
   int n;
   test_heap(10);
 
-  n = get_names_list(names_list); 
+  n = get_names_list(&names_list); 
+
+  printf("n: %d\n\n", n);
 
   for(int i = 0; i < n; i++){
     printf("%s\n", names_list[i]);
