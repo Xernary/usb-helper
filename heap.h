@@ -91,7 +91,7 @@ int* heapsort(int n, int array[n]){
 
 
 
-int main(int argn, char* args[]){
+/*int main(int argn, char* args[]){
 
   if(argn != 2){
     printf("insert array size\n");
@@ -109,6 +109,10 @@ int main(int argn, char* args[]){
   heapify(n, initial_array);
   show(n, initial_array);
 
+
+
+
+
   //int* new_heap = insert(n, initial_array, 3);
   //n++;
   //show(n, new_heap);
@@ -118,7 +122,7 @@ int main(int argn, char* args[]){
 
   //int* sorted = heapsort(n, new_heap);
   //show(n, sorted);
-}
+}*/
 
 
 
