@@ -2,10 +2,16 @@
 #include <dirent.h>
 #include <string.h>
 
+#define MAX_REQUESTS 16
+#define MAX_REQUEST_SIZE 5
 
 const char* const path = "/dev/disk/by-path";
-const char* const substring = "usb";
-int current_usbs = 0;
+const char* const message = "[+] new usb detected";
+const char* const substring_1 = "usb";
+const char* const substring_2 = "part";
+int plugged_usbs = 0;
+char** requests == NULL;
+unsigned int requests_number = 0;
 
 // letter b/c in sdb/sda is a counter
 // so first disk is sda, second sdb and so on
@@ -31,7 +37,8 @@ int filter(const struct dirent* dirent){
   int select = 0;
   const char* name = dirent->d_name;
 
-  if(strstr(name, substring) != NULL && dirent->d_type == DT_LNK && 
+  if(strstr(name, substring_1) != NULL && strstr(name, substring_2) != NULL 
+     && dirent->d_type == DT_LNK && 
      strcmp(name, ".") != 0 && strcmp(name, "..") != 0)
     select = 1;
 
@@ -61,7 +68,7 @@ int get_names_list(char*** names){
   char** names_list;
 
   n = scandir(path, &dirents_list, filter, alphasort);
-  if(n <= 0){
+  if(n < 0){
     perror("Error in scandir");
     exit(1);
   }
@@ -84,18 +91,48 @@ int get_names_list(char*** names){
 }
 
 
+int new_usbs(){
+  return ((get_usbs_number() - plugged_usbs));
+}
+
+
+
+bool add_request(char* request){
+  bool inserted = false;
+  if(requests == NULL){
+    // allocate requests array
+    requests = malloc(sizeof(char*) * MAX_REQUESTS);
+  }
+
+  bool located = false;
+  for(int i = 0; i < requests_number; i++)
+    if(strcmp(requests[0], request) == 0){
+      located = true;
+      break;
+    }
+
+  if(!located){
+    requests[request_number] = malloc(sizeof(char) * MAX_REQUEST_SIZE);
+    strncpy(requests[request_number++], request, MAX_REQUEST_SIZE - 1);
+  }
+
+  return !located;
+}
+
+
 
 void start_detector(){
   int n;
   while(1){
-    if((n = get_usbs_number()) != current_usbs){
-      printf("%s", "[+] new usb detected\n");
+    n = new_usbs();
+    if(n > 0){
+      printf("%s\n", message);
       // handle the new usb
-      current_usbs = n;
-    }
+      plugged_usbs = get_usbs_number();
+    }else if(n < 0)
+      plugged_usbs = get_usbs_number();
   }
 }
-
 
 int main(){
 
@@ -103,13 +140,13 @@ int main(){
   char** names_list;  
   test_heap(10);
 
-  current_usbs = get_names_list(&names_list); 
+  plugged_usbs = get_names_list(&names_list); 
 
-  printf("n: %d\n\n", current_usbs);
+  printf("n: %d\n\n", plugged_usbs);
 
-  //start_detector();
+  start_detector();
 
-  for(int i = 0; i < current_usbs; i++){
+  for(int i = 0; i < plugged_usbs; i++){
     printf("%s\n", names_list[i]);
     free(names_list[i]);
   }
