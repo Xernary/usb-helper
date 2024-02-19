@@ -1,6 +1,7 @@
 #include "heap.h"
 #include <dirent.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define MAX_REQUESTS 16
 #define MAX_REQUEST_SIZE 5
@@ -10,7 +11,7 @@ const char* const message = "[+] new usb detected";
 const char* const substring_1 = "usb";
 const char* const substring_2 = "part";
 int plugged_usbs = 0;
-char** requests == NULL;
+char** requests = NULL;
 unsigned int requests_number = 0;
 
 // letter b/c in sdb/sda is a counter
@@ -99,6 +100,7 @@ int new_usbs(){
 
 bool add_request(char* request){
   bool inserted = false;
+
   if(requests == NULL){
     // allocate requests array
     requests = malloc(sizeof(char*) * MAX_REQUESTS);
@@ -106,21 +108,65 @@ bool add_request(char* request){
 
   bool located = false;
   for(int i = 0; i < requests_number; i++)
-    if(strcmp(requests[0], request) == 0){
+    if(strcmp(requests[i], request) == 0){
       located = true;
       break;
     }
 
-  if(!located){
-    requests[request_number] = malloc(sizeof(char) * MAX_REQUEST_SIZE);
-    strncpy(requests[request_number++], request, MAX_REQUEST_SIZE - 1);
+  if(!located && strlen(request) < MAX_REQUEST_SIZE){
+    requests[requests_number] = malloc(sizeof(char) * MAX_REQUEST_SIZE);
+    strncpy(requests[requests_number++], request, MAX_REQUEST_SIZE);
   }
 
   return !located;
 }
 
 
+void refactor_array(){
+  for(int i = 0; i < requests_number-1; i++){
+    for(int j = i+1; j < requests_number; j++){
+      if(requests[i] != NULL) break;
+      if(requests[j] != NULL){
+        requests[i] = requests[j];
+        requests[j] = NULL;
+      }
+    }
+  }
+}
 
+
+bool remove_request(char* request){
+  bool deleted = false;
+
+  if(requests == NULL) return false;
+
+  for(int i = 0; i < requests_number; i++){
+    if(strcmp(requests[i], request) == 0){
+      free(requests[i]);
+      requests[i] = NULL;
+      refactor_array();
+      requests_number--;
+      deleted = true;
+    }
+  }
+  return deleted;
+}
+
+
+
+void show_requests(){
+  if(requests_number == 0){
+    printf("requests array is empty\n");
+  }
+  else{
+    for(int i = 0; i < requests_number; i++)
+      printf("request[%d]: %s\n", i, requests[i]);
+  }
+  printf("\n");
+}
+
+
+// main deamon loop
 void start_detector(){
   int n;
   while(1){
@@ -138,19 +184,31 @@ int main(){
 
   int fd;
   char** names_list;  
-  test_heap(10);
+  //test_heap(10);
 
   plugged_usbs = get_names_list(&names_list); 
 
   printf("n: %d\n\n", plugged_usbs);
 
-  start_detector();
+  //start_detector();
 
-  for(int i = 0; i < plugged_usbs; i++){
+  /*for(int i = 0; i < plugged_usbs; i++){
     printf("%s\n", names_list[i]);
     free(names_list[i]);
   }
-  free(names_list);
+  free(names_list);*/
+
+  show_requests();
+  add_request("one");
+  add_request("two");
+  add_request("ccc");
+  add_request("aa");
+  add_request("bbb");
+  add_request("ccc");
+  add_request("the");
+  show_requests();
+  remove_request("two");
+  show_requests();
   
 
   printf("%s", "\nworked\n");
