@@ -6,40 +6,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-
-
-
-// constants.h
-
 #include "constants.h"
-
-// end constants.h
-
-
-
-// map.h
-
 #include "map.h"
-
-// end map.h
-
-
-
-
-
-
-// requests.h
-
 #include "requests.h"
-
-// end requests.h
-
-
-
-
-
-
-
 
 
 int plugged_usbs = 0;
@@ -63,9 +32,6 @@ char** names_list = NULL;
 // the requests gets elaborated by asking the user if he wants to mount the usb inside requests[] or not, after this they get removed from requests[]
 
 
-
-
-
 int filter(const struct dirent* dirent){
   int select = 0;
   const char* name = dirent->d_name;
@@ -79,7 +45,6 @@ int filter(const struct dirent* dirent){
 }
 
 
-
 int get_usbs_number(){
   struct dirent** dirents_list;
   int n;
@@ -90,7 +55,6 @@ int get_usbs_number(){
 
   return n;
 }
-
 
 
 // gets every device file name inside the folder at path and puts the the pointer to the array of names in names, and returns the number of them
@@ -144,12 +108,6 @@ int new_usbs(){
 }
 
 
-
-
-
-
-
-
 // gets the name of the file that file_path (abs) points to, and copies it in name
 int get_link_name(char* file_path, char* name){
   char buffer[1024];
@@ -167,7 +125,6 @@ int get_link_name(char* file_path, char* name){
 }
 
 
-
 // gets the usb partition name from its relative path full_name and puts it in partition_name
 void get_usb_partition_name(char* full_name, char* partition_name){
 
@@ -177,13 +134,6 @@ void get_usb_partition_name(char* full_name, char* partition_name){
   }
   char tmp[64];
   char absolute_full_name[128];
-  /*printf("GET_USB CALLED\n");
-  printf("size: %d\n", size);
-  printf("full_name: %p\n", (void*) full_name);
-  printf("full_name: %s\n", full_name);
-  printf("full_name[size-1-3]: %c\n", full_name[size-1-3]);
-  printf("&(full_name[0]): %p\n",(void*) &(full_name[0]));
-  printf("partition_name: %p\n", (void*) partition_name);*/
   strcpy(absolute_full_name, path);
   strcat(absolute_full_name, "/");
   strcat(absolute_full_name, full_name);
@@ -193,11 +143,6 @@ void get_usb_partition_name(char* full_name, char* partition_name){
   strcpy(partition_name, &(tmp[size-4]));
   //printf("GET_USB 2 CALLED\n");
 }
-
-
-
-
-
 
 
 // compares the new fetched list of usbs to the in-memory one (names_list) and if it finds a new usb that is not in the in-memory, it gets its name and puts it in name
@@ -235,7 +180,6 @@ bool find_new_usb(char* full_name, char* name){
 }
 
 
-
 bool find_unplugged_usb(char* full_name, char* name){
 
   char** all_usbs;
@@ -269,8 +213,6 @@ bool find_unplugged_usb(char* full_name, char* name){
   }
   return is_new;
 }
-
-
 
 
 void show_info(){
@@ -320,8 +262,8 @@ void start_detector(){
   }
 }
 
-int main(){
 
+int main(){
 
   plugged_usbs = get_names_list(path, &names_list); 
 
@@ -329,29 +271,7 @@ int main(){
 
   start_detector();
 
-  /*for(int i = 0; i < plugged_usbs; i++){
-    printf("%s\n", names_list[i]);
-    free(names_list[i]);
-  }
-  free(names_list);*/
-
-  char buff[16];
-  get_usb_partition_name("pci-0000:00:0b.0-usb-0:1:1.0-scsi-0:0:0:0-part1", buff);
-  printf("\nPART NAME: %s\n", buff);
-
-  /*show_requests();
-  add_request("one");
-  add_request("two");
-  add_request("ccc");
-  add_request("aa");
-  add_request("bbb");
-  add_request("ccc");
-  add_request("the");
-  show_requests();
-  remove_request("two");
-  show_requests();*/
-  
-
   printf("%s", "\nworked\n");
+
   return 0;
 }
