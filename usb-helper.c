@@ -12,7 +12,7 @@ const char* const message = "[+] new usb detected";
 const char* const substring_1 = "usb";
 const char* const substring_2 = "part";
 int plugged_usbs = 0;
-char** names_list;  
+char** names_list = NULL;  
 char** requests = NULL;
 unsigned int requests_number = 0;
 
@@ -63,36 +63,36 @@ int get_usbs_number(){
 
 
 
-// gets every device file name inside the folder at path and returns the pointer to its array
+// gets every device file name inside the folder at path and puts the the pointer to the array of names in names, and returns the number of them
 int get_names_list(char*** names){
   
   struct dirent** dirents_list;
   int n;
-  char** names_list;
+  char** new_names_list;
 
   n = scandir(path, &dirents_list, filter, alphasort);
   if(n < 0){
     perror("Error in scandir");
     exit(1);
-  }
+  }else if(n == 0) return 0;
 
-  names_list = malloc(sizeof(char*) * n);
+  new_names_list = malloc(sizeof(char*) * n);
 
   for(int i = 0; i < n; i++){
     printf("%s\n", dirents_list[i]->d_name);
 
-    names_list[i] = malloc(sizeof(char) * strlen(dirents_list[i]->d_name) + 1);
-    strcpy(names_list[i], dirents_list[i]->d_name); 
+    new_names_list[i] = malloc(sizeof(char) * strlen(dirents_list[i]->d_name) + 1);
+    strcpy(new_names_list[i], dirents_list[i]->d_name); 
     printf("dirents_list[i]->d_name: %s\n", dirents_list[i]->d_name); 
 
     free(dirents_list[i]);
   }
   free(dirents_list);
-  printf("AAAAAAAAAAAAAA names: %p, *names = %d\n", names, *names); 
-  *names = names_list;
+  *names = new_names_list;
 
   return n;
 }
+
 
 
 int new_usbs(){
@@ -206,39 +206,37 @@ void get_usb_partition_name(char* full_name, char* partition_name){
 }
 
 
-
-void find_new_usb(char* name){
+// compares the new fetched list of usbs to the in-memory one (names_list) and if it finds a new usb that is not in the in-memory, it gets its name and puts it in name
+bool find_new_usb(char* name){
 
   char** all_usbs;
   get_names_list(&all_usbs);
-
+  bool found = false;
+  bool is_new = false;
 
   for(int i = 0; i < get_usbs_number(); i++){
     printf("all: %s\n", all_usbs[i]);
   }
 
 
-  printf("CALLED 1111111\n");
   for(int i = 0; i < get_usbs_number(); i++){
-     printf("CALLED 22222\n");
-    bool found = false;
+    found = false;
     for(int j = 0; j < plugged_usbs; j++){
-     printf("CALLED 333333333 plugged: %d, get_usb_number(): %d\n", plugged_usbs, 
-            get_usbs_number());
-     printf("all_usbs: %p, names_list: %p\n", all_usbs, names_list);
       if(strcmp(all_usbs[i], names_list[j]) == 0){ 
-     printf("CALLED 444444444\n");
         found = true;
         break;
       }
     }
     printf("FIND CALLED\n");
-    if(!found)
+    if(!found || plugged_usbs == 0){
+      is_new = true;
       /*printf("name: %p\n", name);
       printf("all_usbs[i]: %p\n", all_usbs[i]);*/
       get_usb_partition_name(all_usbs[i], name);
+      break;
+    }
   }
-
+  return is_new;
 }
 
 
@@ -249,15 +247,20 @@ void start_detector(){
     n = new_usbs();
     if(n > 0){
       printf("%s\n", message);
-      printf("\n\n%d\n", n);
+      printf("\n\nNEW USB DETECTED, TOTAL IS: %d\n", n);
       // handle the new usb
       char name[1024];
-      find_new_usb(name);
-      printf("\nUSB: %s\n", name);
+      if(find_new_usb(name))
+        printf("\n+USB: %s, TOTAL: %d\n", name, plugged_usbs+n);
+      else
+        printf("NOT A NEW USB\n");
+      plugged_usbs += n;
+      get_names_list(&names_list);
+    }else if(n < 0){
       plugged_usbs = get_usbs_number();
-
-    }else if(n < 0)
-      plugged_usbs = get_usbs_number();
+      get_names_list(&names_list);
+      printf("\n-USB: idk yet, TOTAL: %d\n", plugged_usbs);
+    }
   }
 }
 
