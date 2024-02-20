@@ -169,31 +169,33 @@ void show_requests(){
 }
 
 
-int get_link_name(char** name){
+// gets the name of the file that file_path (abs) points to, and copies it in name
+int get_link_name(char* file_path, char* name){
   char buffer[1024];
   ssize_t link_string_length;
-  if ((link_string_length = readlink("/dev/disk/by-path/pci-0000:00:0b.0-usbv2-0:1:1.0-scsi-0:0:0:0-part1", buffer, sizeof(buffer))) == -1){
-    perror("readlink");
+  if ((link_string_length = readlink(file_path, buffer, sizeof(buffer))) == -1){
+    perror(file_path);
   }
 
   else{
     // Make sure that the buffer is terminated as a string
     buffer[link_string_length] = '\0';
-    *name = buffer;
-    printf("%s -> %s\n", "/dev/disk/by-path/pci-0000:00:0b.0-usbv2-0:1:1.0-scsi-0:0:0:0-part1", buffer);
+    strcpy(name, buffer);
+    printf("%s -> %s\n", file_path, buffer);
   }
 }
 
 
 
+// gets the usb partition name from its relative path full_name and puts it in partition_name
 void get_usb_partition_name(char* full_name, char* partition_name){
 
   if(full_name == NULL){
     perror("full_name is NULL in get_usb_partition()\n");
     exit(1);
   }
-
-  int size = strlen(full_name);
+  char tmp[64];
+  char absolute_full_name[128];
   /*printf("GET_USB CALLED\n");
   printf("size: %d\n", size);
   printf("full_name: %p\n", (void*) full_name);
@@ -201,7 +203,13 @@ void get_usb_partition_name(char* full_name, char* partition_name){
   printf("full_name[size-1-3]: %c\n", full_name[size-1-3]);
   printf("&(full_name[0]): %p\n",(void*) &(full_name[0]));
   printf("partition_name: %p\n", (void*) partition_name);*/
-  strcpy(partition_name, &(full_name[size-1-3]));  
+  strcpy(absolute_full_name, path);
+  strcat(absolute_full_name, "/");
+  strcat(absolute_full_name, full_name);
+  printf("CONCAT: %s\n", absolute_full_name);
+  get_link_name(absolute_full_name, tmp);
+  int size = strlen(tmp);
+  strcpy(partition_name, &(tmp[size-4]));
   //printf("GET_USB 2 CALLED\n");
 }
 
@@ -250,8 +258,18 @@ void start_detector(){
       printf("\n\nNEW USB DETECTED, TOTAL IS: %d\n", n);
       // handle the new usb
       char name[1024];
-      if(find_new_usb(name))
-        printf("\n+USB: %s, TOTAL: %d\n", name, plugged_usbs+n);
+      char part_name[16]; 
+
+
+      if(find_new_usb(name)){
+        get_usb_partition_name(name, part_name);
+        if(add_request(part_name))
+          printf("\n+USB: %s, TOTAL: %d\n", name, plugged_usbs+n);
+        else{
+          printf("\n[/] USB IGNORED, CURRENT REQ_LIST:\n");
+          show_requests();
+        }
+      }
       else
         printf("NOT A NEW USB\n");
       plugged_usbs += n;
@@ -281,9 +299,9 @@ int main(){
   }
   free(names_list);*/
 
-  char* c;
-  get_link_name(&c);
-  printf("%s\n", c);
+  char buff[16];
+  get_usb_partition_name("pci-0000:00:0b.0-usb-0:1:1.0-scsi-0:0:0:0-part1", buff);
+  printf("\nPART NAME: %s\n", buff);
 
   /*show_requests();
   add_request("one");
