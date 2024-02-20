@@ -8,19 +8,26 @@
 #define MAX_REQUEST_SIZE 5
 #define MAX_MAP_SIZE 32
 
+
 struct name_partition{
   char* name;
   char* partition;
 };
 
+
 const char* const path = "/dev/disk/by-path";
+const char* const mount_path = "/mnt"
+
 const char* const message = "[+] new usb detected";
 const char* const substring_1 = "usb";
 const char* const substring_2 = "part";
+
 int plugged_usbs = 0;
 char** names_list = NULL;  
+
 char** requests = NULL;
 unsigned int requests_number = 0;
+
 struct name_partition* name_partition_map = NULL;
 unsigned int map_size = 0;
 
