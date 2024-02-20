@@ -1,7 +1,10 @@
-all: heap usb-helper
+all: usb-helper 
 
-usb-helper: usb-helper.c heap.h
-	gcc -g usb-helper.c -o usb-helper
+usb-helper: usb-helper.c 
+	gcc -o usb-helper map.c requests.c constants.c usb-helper.c 
 
-heap: heap.h
-	gcc heap.h -o heap
+map: map.h
+
+requests: requests.h
+
+constants: constants.h
