@@ -6,6 +6,12 @@
 
 #define MAX_REQUESTS 16
 #define MAX_REQUEST_SIZE 5
+#define MAX_MAP_SIZE 32
+
+struct name_partition{
+  char* name;
+  char* partition;
+};
 
 const char* const path = "/dev/disk/by-path";
 const char* const message = "[+] new usb detected";
@@ -15,13 +21,26 @@ int plugged_usbs = 0;
 char** names_list = NULL;  
 char** requests = NULL;
 unsigned int requests_number = 0;
+struct name_partition* name_partition_map = NULL;
+unsigned int map_size = 0;
+
 
 // letter b/c in sdb/sda is a counter
 // so first disk is sda, second sdb and so on
 
-// MAIN DISK name is sda 
-// SECOND DISK name sdb is from [sda to sde] and partitions [sda1 to sda9] 
-// USB name is sdb
+// names_list = [pci-0000:00:0b.0-usb-0:1:1.0-scsi-0:0:0:0-part1, ...]
+// its the list of unique usbs paths loaded in memory (contains "usb" and "part")
+// two unique names can point to the same usb (to the same partition)
+// the list gets updated only after a NEW adequate name is found in path
+// a new string gets inserted only when its not already in requests[] and its not mounted
+// 
+// plugged_usbs = 0 
+// its the lenght of names_list
+//
+// requests = ["sdb1", "sdc1", "sdd1", ...]
+// an array of string with the NEW detected usb that needs to be mounted (or not)
+// a NEW detected usb can only be added in request[] if not already present and if not already mounted
+// the requests gets elaborated by asking the user if he wants to mount the usb inside requests[] or not, after this they get removed from requests[]
 
 // creates heap with n elements and shows it before and after heapify
 void test_heap(int n){
@@ -64,13 +83,13 @@ int get_usbs_number(){
 
 
 // gets every device file name inside the folder at path and puts the the pointer to the array of names in names, and returns the number of them
-int get_names_list(char*** names){
+int get_names_list(const char* const file_path, char*** names){
   
   struct dirent** dirents_list;
   int n;
   char** new_names_list;
 
-  n = scandir(path, &dirents_list, filter, alphasort);
+  n = scandir(file_path, &dirents_list, filter, alphasort);
   if(n < 0){
     perror("Error in scandir");
     exit(1);
@@ -94,13 +113,39 @@ int get_names_list(char*** names){
 }
 
 
+void show_names_list(){
+
+  printf("\n");
+  if(plugged_usbs == 0){
+    printf("names_list = NULL\n");
+    return;
+  }
+
+  for(int i = 0; i < plugged_usbs; i++)
+    printf("names_list[%d] = %s\n", i, names_list[i]);
+  printf("\n");
+
+}
+
 
 int new_usbs(){
   return ((get_usbs_number() - plugged_usbs));
 }
 
 
+// checks if partition_name is mounted on the system
+bool is_mounted(char* partition_name){
+  bool mounted = false;
 
+  // open the system mount-point folder and search for folder named partiition_name
+  // return true if found, false otherwise
+
+  return mounted;
+}
+
+
+
+// add req if not present already and request its not already mounted
 bool add_request(char* request){
   bool inserted = false;
 
@@ -115,8 +160,8 @@ bool add_request(char* request){
       located = true;
       break;
     }
-
-  if(!located && strlen(request) < MAX_REQUEST_SIZE){
+                                                       // to do
+  if(!located && strlen(request) < MAX_REQUEST_SIZE && !is_mounted(request)){
     requests[requests_number] = malloc(sizeof(char) * MAX_REQUEST_SIZE);
     strncpy(requests[requests_number++], request, MAX_REQUEST_SIZE);
   }
@@ -214,11 +259,29 @@ void get_usb_partition_name(char* full_name, char* partition_name){
 }
 
 
+
+bool get_partition_from_map(char* name, char* partition){
+
+  if(name_partition_map == NULL){
+    perror("name_partition_map is NULL in get_partition_from_map\n");
+    exit(1);
+  }
+
+  for(int i = 0; i < map_size; i++)
+    if(strcmp(name_partition_map[i].name, name) == 0){
+      partition = name_partition_map[i].partition;
+      return true;
+    }
+  return false;
+}
+
+
+
 // compares the new fetched list of usbs to the in-memory one (names_list) and if it finds a new usb that is not in the in-memory, it gets its name and puts it in name
-bool find_new_usb(char* name){
+bool find_new_usb(char* full_name, char* name){
 
   char** all_usbs;
-  get_names_list(&all_usbs);
+  get_names_list(path, &all_usbs);
   bool found = false;
   bool is_new = false;
 
@@ -241,6 +304,7 @@ bool find_new_usb(char* name){
       /*printf("name: %p\n", name);
       printf("all_usbs[i]: %p\n", all_usbs[i]);*/
       get_usb_partition_name(all_usbs[i], name);
+      strcpy(full_name, all_usbs[i]);
       break;
     }
   }
@@ -248,37 +312,117 @@ bool find_new_usb(char* name){
 }
 
 
+
+bool find_unplugged_usb(char* full_name, char* name){
+
+  char** all_usbs;
+  get_names_list(path, &all_usbs);
+  bool found = false;
+  bool is_new = false;
+
+  for(int i = 0; i < get_usbs_number(); i++){
+    printf("all: %s\n", all_usbs[i]);
+  }
+
+
+  for(int i = 0; i < plugged_usbs; i++){
+    found = false;
+    for(int j = 0; j < get_usbs_number(); j++){
+      if(strcmp(all_usbs[j], names_list[i]) == 0){ 
+        found = true;
+        break;
+      }
+    }
+    printf("FIND CALLED\n");
+    if(!found && plugged_usbs != 0){
+      is_new = true;
+      printf("NAME: %s\n", names_list[i]); 
+      if(get_partition_from_map(names_list[i], name)){
+        strcpy(full_name, names_list[i]);
+        printf("NAMEEEEEEEEE: %s\n", name);
+      }
+      break;
+    }
+  }
+  return is_new;
+}
+
+
+void add_to_map(char* name, char* partition){
+  if(name_partition_map == NULL){
+    name_partition_map = malloc(sizeof(struct name_partition) * MAX_MAP_SIZE); 
+  }
+  if(map_size == MAX_MAP_SIZE) return;
+  
+  for(int i = 0; i < map_size; i++)
+    if(strcmp(name, name_partition_map[i].name) == 0) return;
+
+  struct name_partition new_entry;
+  strcpy(new_entry.name, name);
+  strcpy(new_entry.partition, partition);
+  name_partition_map[map_size] = new_entry;
+  map_size++;
+}
+
+
+
+void show_map(){
+  if(name_partition_map == NULL){
+    printf("name_partition_map = NULL\n");
+    return;
+  }
+  for(int i = 0; i < map_size; i++){
+    printf("name_partition_map[%d] = {%s, %s}\n", i, 
+           name_partition_map[i].name, name_partition_map[i].partition);
+  }
+  printf("\n");
+}
+
+
+void show_info(){
+  printf("------------------------\n");
+  printf("plugged_usbs = %d\n\n", plugged_usbs);
+  printf("map_size = %d\n\n", map_size);
+  show_requests();
+  show_names_list();
+  show_map();
+  printf("------------------------\n");
+}
+
+
 // main deamon loop
 void start_detector(){
   int n;
+  char part_name[16]; 
+  char full_name[64];
+
   while(1){
     n = new_usbs();
     if(n > 0){
       printf("%s\n", message);
       printf("\n\nNEW USB DETECTED, TOTAL IS: %d\n", n);
       // handle the new usb
-      char name[1024];
-      char part_name[16]; 
-
-
-      if(find_new_usb(name)){
-        get_usb_partition_name(name, part_name);
-        if(add_request(part_name))
-          printf("\n+USB: %s, TOTAL: %d\n", name, plugged_usbs+n);
-        else{
+      if(find_new_usb(full_name, part_name) && add_request(part_name)){
+          printf("\n+USB: %s, TOTAL: %d\n", part_name, plugged_usbs+n);         
+      }else{
           printf("\n[/] USB IGNORED, CURRENT REQ_LIST:\n");
-          show_requests();
-        }
+          show_info();
       }
-      else
-        printf("NOT A NEW USB\n");
       plugged_usbs += n;
-      get_names_list(&names_list);
+      get_names_list(path, &names_list);
+      add_to_map(full_name, part_name);
+      show_info();
     }else if(n < 0){
+      find_unplugged_usb(full_name, part_name);
+      printf("UNPLUGGED NAME FOUND: %s\n", part_name);
+      remove_request(part_name);
       plugged_usbs = get_usbs_number();
-      get_names_list(&names_list);
+      get_names_list(path, &names_list);
       printf("\n-USB: idk yet, TOTAL: %d\n", plugged_usbs);
+      show_info(); 
     }
+    // check for current requests and elaborate them
+    //
   }
 }
 
@@ -287,7 +431,7 @@ int main(){
   int fd;
   //test_heap(10);
 
-  plugged_usbs = get_names_list(&names_list); 
+  plugged_usbs = get_names_list(path, &names_list); 
 
   printf("n: %d\n\n", plugged_usbs);
 
