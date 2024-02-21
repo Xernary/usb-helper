@@ -113,9 +113,8 @@ int get_link_name(char* file_path, char* name){
   char buffer[1024];
   ssize_t link_string_length;
   if ((link_string_length = readlink(file_path, buffer, sizeof(buffer))) == -1){
-    perror(file_path);
+    perror("Error in readlink in get_link_name()");
   }
-
   else{
     // Make sure that the buffer is terminated as a string
     buffer[link_string_length] = '\0';
@@ -129,19 +128,19 @@ int get_link_name(char* file_path, char* name){
 void get_usb_partition_name(char* full_name, char* partition_name){
 
   if(full_name == NULL){
-    perror("full_name is NULL in get_usb_partition()\n");
+    perror("full_name is NULL in get_usb_partition()");
     exit(1);
   }
+
   char tmp[64];
   char absolute_full_name[128];
+
   strcpy(absolute_full_name, path);
   strcat(absolute_full_name, "/");
   strcat(absolute_full_name, full_name);
-  printf("CONCAT: %s\n", absolute_full_name);
   get_link_name(absolute_full_name, tmp);
   int size = strlen(tmp);
   strcpy(partition_name, &(tmp[size-4]));
-  //printf("GET_USB 2 CALLED\n");
 }
 
 
@@ -225,12 +224,31 @@ void show_info(){
   printf("------------------------\n");
 }
 
+//initiates structures, like map
+void init(){
+  plugged_usbs = get_names_list(path, &names_list); 
+  printf("n: %d\n\n", plugged_usbs);
+  // init map
+  char* name;
+  char partition[64];
+  show_info();
+  for(int i = 0; i < plugged_usbs; i++){
+    name = names_list[i];
+    printf("getting partition of %s\n", name);
+    get_usb_partition_name(name, partition);
+    printf("222222222222 partition = %s\n", partition);
+    add_to_map(name, partition);
+    printf("added {%s, %s} to map[%d]\n", name, partition, i);
+  }
+  return;
+}
 
 // main deamon loop
 void start_detector(){
   int n;
   char part_name[16]; 
   char full_name[64];
+  bool first_iteration = true;
 
   while(1){
     n = new_usbs();
@@ -259,16 +277,19 @@ void start_detector(){
     }
     // check for current requests and elaborate them
     //
+    if(first_iteration){
+      show_info();
+      first_iteration = false;
+    }
   }
 }
 
 
 int main(){
 
-  plugged_usbs = get_names_list(path, &names_list); 
 
-  printf("n: %d\n\n", plugged_usbs);
 
+  init();
   start_detector();
 
   printf("%s", "\nworked\n");

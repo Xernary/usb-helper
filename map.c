@@ -9,8 +9,8 @@
 #include "constants.h"
 
 struct name_partition{
-  char* name;
-  char* partition;
+  char name[64];
+  char partition[8];
 };
 
 struct name_partition* name_partition_map = NULL;
@@ -19,7 +19,7 @@ unsigned int map_size = 0;
 bool get_partition_from_map(char* name, char* partition){
 
   if(name_partition_map == NULL){
-    perror("name_partition_map is NULL in get_partition_from_map\n");
+    perror("name_partition_map is NULL in get_partition_from_map");
     exit(1);
   }
 
@@ -35,7 +35,11 @@ void add_to_map(char* name, char* partition){
   if(name_partition_map == NULL){
     name_partition_map = malloc(sizeof(struct name_partition) * MAX_MAP_SIZE); 
   }
-  if(map_size == MAX_MAP_SIZE) return;
+
+  if(map_size == MAX_MAP_SIZE){
+    perror("Cant add to map, map is full\n");
+    return;
+  }
   
   for(int i = 0; i < map_size; i++)
     if(strcmp(name, name_partition_map[i].name) == 0) return;
