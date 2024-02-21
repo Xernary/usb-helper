@@ -10,6 +10,8 @@ bool get_partition_from_map(char*, char*);
 
 void add_to_map(char*, char*);
 
+void remove_from_map(char*);
+
 void show_map();
 
 #endif

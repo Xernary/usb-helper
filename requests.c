@@ -11,7 +11,7 @@ char** requests = NULL;
 unsigned int requests_number = 0;
 
 // checks if partition_name is mounted on the system
-bool is_mounted(char* partition_name){
+bool is_req_mounted(char* partition_name){
   bool mounted = false;
 
   // open the system mount-point folder and search for folder named partiition_name
@@ -36,7 +36,7 @@ bool add_request(char* request){
       break;
     }
                                                        // to do
-  if(!located && strlen(request) < MAX_REQUEST_SIZE && !is_mounted(request)){
+  if(!located && strlen(request) < MAX_REQUEST_SIZE && !is_req_mounted(request)){
     requests[requests_number] = malloc(sizeof(char) * MAX_REQUEST_SIZE);
     strncpy(requests[requests_number++], request, MAX_REQUEST_SIZE);
   }
@@ -44,7 +44,7 @@ bool add_request(char* request){
   return !located;
 }
 
-void refactor_array(){
+void refactor_req_array(){
   for(int i = 0; i < requests_number-1; i++){
     for(int j = i+1; j < requests_number; j++){
       if(requests[i] != NULL) break;
@@ -65,7 +65,7 @@ bool remove_request(char* request){
     if(strcmp(requests[i], request) == 0){
       free(requests[i]);
       requests[i] = NULL;
-      refactor_array();
+      refactor_req_array();
       requests_number--;
       deleted = true;
     }

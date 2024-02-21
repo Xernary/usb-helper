@@ -9,6 +9,7 @@
 #include "constants.h"
 #include "map.h"
 #include "requests.h"
+#include "mounts.h"
 
 
 int plugged_usbs = 0;
@@ -224,7 +225,7 @@ void show_info(){
   printf("------------------------\n");
 }
 
-//initiates structures, like map
+//initiates structures, like map, requests, 
 void init(){
   plugged_usbs = get_names_list(path, &names_list); 
   printf("n: %d\n\n", plugged_usbs);
@@ -238,9 +239,28 @@ void init(){
     get_usb_partition_name(name, partition);
     printf("222222222222 partition = %s\n", partition);
     add_to_map(name, partition);
+    add_request(partition);
     printf("added {%s, %s} to map[%d]\n", name, partition, i);
   }
   return;
+}
+
+void mount_usb(char* partition){
+  if(fork() == 0){
+        execl("/usr/bin/mount", "/usr/bin/mount", "/dev/sdd1", "/mnt", NULL);
+        exit(0);
+  }
+  add_mount(partition);
+  remove_request(partition);
+}
+
+void unmount_usb(char* partition){
+  if(fork() == 0){
+        execl("/usr/bin/umount", "/usr/bin/umount", "/dev/sdd1", NULL);
+        exit(0);
+  }
+  remove_from_map(partition);
+  remove_mount(partition);
 }
 
 // main deamon loop
@@ -269,14 +289,24 @@ void start_detector(){
     }else if(n < 0){
       find_unplugged_usb(full_name, part_name);
       printf("UNPLUGGED NAME FOUND: %s\n", part_name);
+      
+      // remove from mounts[]
+      remove_from_map(part_name);
+      remove_mount(part_name);
       remove_request(part_name);
       plugged_usbs = get_usbs_number();
       get_names_list(path, &names_list);
-      printf("\n-USB: idk yet, TOTAL: %d\n", plugged_usbs);
+      printf("\n-USB, TOTAL: %d\n", plugged_usbs);
       show_info(); 
     }
+
     // check for current requests and elaborate them
-    //
+    for(int i = 0; i < requests_number; i++){
+      mount_usb(requests[i]);
+      printf("mounted, requests:\n");
+      show_requests();
+    }
+
     if(first_iteration){
       show_info();
       first_iteration = false;

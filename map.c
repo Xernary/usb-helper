@@ -51,6 +51,20 @@ void add_to_map(char* name, char* partition){
   map_size++;
 }
 
+void remove_from_map(char* partition){
+  if(name_partition_map == NULL || map_size == 0)
+    return;
+
+  for(int i = 0; i < map_size; i++)
+    if(strcmp(partition, name_partition_map[i].partition) == 0){
+      name_partition_map[i] = name_partition_map[map_size-1];
+      memset(&(name_partition_map[map_size-1]), 0, 
+             sizeof(struct name_partition));
+      map_size--;
+    }
+  return;
+}
+
 void show_map(){
   if(name_partition_map == NULL){
     printf("name_partition_map = NULL\n");
