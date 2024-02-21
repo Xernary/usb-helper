@@ -74,11 +74,9 @@ int get_names_list(const char* const file_path, char*** names){
   new_names_list = malloc(sizeof(char*) * n);
 
   for(int i = 0; i < n; i++){
-    printf("%s\n", dirents_list[i]->d_name);
 
     new_names_list[i] = malloc(sizeof(char) * strlen(dirents_list[i]->d_name) + 1);
     strcpy(new_names_list[i], dirents_list[i]->d_name); 
-    printf("dirents_list[i]->d_name: %s\n", dirents_list[i]->d_name); 
 
     free(dirents_list[i]);
   }
@@ -120,7 +118,6 @@ int get_link_name(char* file_path, char* name){
     // Make sure that the buffer is terminated as a string
     buffer[link_string_length] = '\0';
     strcpy(name, buffer);
-    printf("%s -> %s\n", file_path, buffer);
   }
 }
 
@@ -154,11 +151,6 @@ bool find_new_usb(char* full_name, char* name){
   bool is_new = false;
 
   for(int i = 0; i < get_usbs_number(); i++){
-    printf("all: %s\n", all_usbs[i]);
-  }
-
-
-  for(int i = 0; i < get_usbs_number(); i++){
     found = false;
     for(int j = 0; j < plugged_usbs; j++){
       if(strcmp(all_usbs[i], names_list[j]) == 0){ 
@@ -166,11 +158,8 @@ bool find_new_usb(char* full_name, char* name){
         break;
       }
     }
-    printf("FIND CALLED\n");
     if(!found || plugged_usbs == 0){
       is_new = true;
-      /*printf("name: %p\n", name);
-      printf("all_usbs[i]: %p\n", all_usbs[i]);*/
       get_usb_partition_name(all_usbs[i], name);
       strcpy(full_name, all_usbs[i]);
       break;
@@ -187,11 +176,6 @@ bool find_unplugged_usb(char* full_name, char* name){
   bool found = false;
   bool is_new = false;
 
-  for(int i = 0; i < get_usbs_number(); i++){
-    printf("all: %s\n", all_usbs[i]);
-  }
-
-
   for(int i = 0; i < plugged_usbs; i++){
     found = false;
     for(int j = 0; j < get_usbs_number(); j++){
@@ -200,13 +184,10 @@ bool find_unplugged_usb(char* full_name, char* name){
         break;
       }
     }
-    printf("FIND CALLED\n");
     if(!found && plugged_usbs != 0){
       is_new = true;
-      printf("NAME: %s\n", names_list[i]); 
       if(get_partition_from_map(names_list[i], name)){
         strcpy(full_name, names_list[i]);
-        printf("NAMEEEEEEEEE: %s\n", name);
       }
       break;
     }
@@ -220,6 +201,7 @@ void show_info(){
   printf("plugged_usbs = %d\n\n", plugged_usbs);
   printf("map_size = %d\n\n", map_size);
   show_requests();
+  show_mounts();
   show_names_list();
   show_map();
   printf("------------------------\n");
@@ -235,32 +217,47 @@ void init(){
   show_info();
   for(int i = 0; i < plugged_usbs; i++){
     name = names_list[i];
-    printf("getting partition of %s\n", name);
     get_usb_partition_name(name, partition);
-    printf("222222222222 partition = %s\n", partition);
     add_to_map(name, partition);
     add_request(partition);
-    printf("added {%s, %s} to map[%d]\n", name, partition, i);
   }
   return;
 }
 
-void mount_usb(char* partition){
+bool mount_usb(char* partition){
+  char concat_partition[32];
+  strcpy(concat_partition, "/dev/");
+  strcat(concat_partition, partition);
+
+  if(!add_mount(partition)) return false;
+
   if(fork() == 0){
-        execl("/usr/bin/mount", "/usr/bin/mount", "/dev/sdd1", "/mnt", NULL);
+        execl("/usr/bin/mount", "/usr/bin/mount", concat_partition,
+              mount_path, NULL);
         exit(0);
   }
-  add_mount(partition);
+  printf("[+] %s mounted at %s\n", partition, mount_path);
   remove_request(partition);
+
+  return true;
 }
 
 void unmount_usb(char* partition){
+  if(!remove_mount(partition)) return;
+
+  char concat_partition[32];
+  strcpy(concat_partition, "/dev/");
+  strcat(concat_partition, partition);
+
   if(fork() == 0){
-        execl("/usr/bin/umount", "/usr/bin/umount", "/dev/sdd1", NULL);
+        execl("/usr/bin/umount", "/usr/bin/umount",
+              concat_partition, NULL);
         exit(0);
   }
   remove_from_map(partition);
-  remove_mount(partition);
+  remove_request(partition);
+  printf("[-] %s unmounted from %s\n", partition, mount_path);
+  return;
 }
 
 // main deamon loop
@@ -273,39 +270,33 @@ void start_detector(){
   while(1){
     n = new_usbs();
     if(n > 0){
-      printf("%s\n", message);
-      printf("\n\nNEW USB DETECTED, TOTAL IS: %d\n", n);
       // handle the new usb
       if(find_new_usb(full_name, part_name) && add_request(part_name)){
-          printf("\n+USB: %s, TOTAL: %d\n", part_name, plugged_usbs+n);         
+        printf("%s, total is %d\n", message, plugged_usbs+n);
       }else{
           printf("\n[/] USB IGNORED, CURRENT REQ_LIST:\n");
+          printf("PLUGGED USB = %s\n", part_name); 
           show_info();
       }
       plugged_usbs += n;
       get_names_list(path, &names_list);
       add_to_map(full_name, part_name);
-      show_info();
+      //show_info();
     }else if(n < 0){
       find_unplugged_usb(full_name, part_name);
-      printf("UNPLUGGED NAME FOUND: %s\n", part_name);
-      
       // remove from mounts[]
-      remove_from_map(part_name);
-      remove_mount(part_name);
-      remove_request(part_name);
+      unmount_usb(part_name);
+      //remove_from_map(part_name);
+      //remove_mount(part_name);
+      //remove_request(part_name);
       plugged_usbs = get_usbs_number();
       get_names_list(path, &names_list);
-      printf("\n-USB, TOTAL: %d\n", plugged_usbs);
-      show_info(); 
+      //show_info(); 
     }
 
     // check for current requests and elaborate them
-    for(int i = 0; i < requests_number; i++){
+    for(int i = 0; i < requests_number; i++)
       mount_usb(requests[i]);
-      printf("mounted, requests:\n");
-      show_requests();
-    }
 
     if(first_iteration){
       show_info();
