@@ -5,6 +5,9 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include "constants.h"
 #include "map.h"
@@ -14,6 +17,7 @@
 
 int plugged_usbs = 0;
 char** names_list = NULL;  
+const char* home_dir;
 
 // letter b/c in sdb/sda is a counter
 // so first disk is sda, second sdb and so on
@@ -224,6 +228,28 @@ void init(){
   return;
 }
 
+void create_folder(char* partition, char* f_path){
+  char folder_path[64];
+  strcpy(folder_path, mount_path);
+  strcat(folder_path, "/usbs");
+
+  if(mkdir(folder_path, O_RDWR | S_IROTH | S_IWOTH) == -1 && errno != EEXIST){
+    perror("Error in creating usbs mounting folder");
+    exit(1);
+  }
+
+  strcat(folder_path, "/");
+  strcat(folder_path, partition);
+
+  if(mkdir(folder_path, O_RDWR | S_IROTH | S_IWOTH) == -1 && errno != EEXIST){
+    perror("Error in creating device mounting folder");
+    exit(1);
+  }
+  strcpy(f_path, folder_path);
+  
+  return;
+}
+
 bool mount_usb(char* partition){
   char concat_partition[32];
   strcpy(concat_partition, "/dev/");
@@ -231,12 +257,15 @@ bool mount_usb(char* partition){
 
   if(!add_mount(partition)) return false;
 
+  char concat_mount_path[32];
+  create_folder(partition, concat_mount_path);
+
   if(fork() == 0){
         execl("/usr/bin/mount", "/usr/bin/mount", concat_partition,
-              mount_path, NULL);
+              concat_mount_path, NULL);
         exit(0);
   }
-  printf("[+] %s mounted at %s\n", partition, mount_path);
+  printf("[+] %s mounted at %s\n", partition, concat_mount_path);
   remove_request(partition);
 
   return true;
@@ -307,8 +336,6 @@ void start_detector(){
 
 
 int main(){
-
-
 
   init();
   start_detector();
