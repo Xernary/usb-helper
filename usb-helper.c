@@ -238,11 +238,21 @@ void create_folder(char* partition, char* f_path){
     exit(1);
   }
 
+  if(chmod(folder_path, 511) == -1){
+    perror("Error in changing device mounting folder permissions");
+    exit(1);
+  }
+
   strcat(folder_path, "/");
   strcat(folder_path, partition);
 
   if(mkdir(folder_path, O_RDWR | S_IROTH | S_IWOTH) == -1 && errno != EEXIST){
     perror("Error in creating device mounting folder");
+    exit(1);
+  }
+
+  if(chmod(folder_path, 511) == -1){
+    perror("Error in changing device mounting folder permissions");
     exit(1);
   }
   strcpy(f_path, folder_path);
@@ -268,6 +278,9 @@ bool mount_usb(char* partition){
   printf("[+] %s mounted at %s\n", partition, concat_mount_path);
   remove_request(partition);
 
+  // to-do
+  // play usb-inserted sound here
+
   return true;
 }
 
@@ -286,6 +299,8 @@ void unmount_usb(char* partition){
   remove_from_map(partition);
   remove_request(partition);
   printf("[-] %s unmounted from %s\n", partition, mount_path);
+  // to-do
+  // play usb-removed sound here
   return;
 }
 
